@@ -74,7 +74,7 @@ public class Server {
            	String cmd = dis.readUTF();
             if (cmd.equalsIgnoreCase("UPLOAD")) {
                 receiveFile(connection);
-            } else if (cmd.equalsIgnoreCase("FECTH")) {
+            } else if (cmd.equalsIgnoreCase("FETCH")) {
                 returnFile(connection);
             } else {
             	break;
