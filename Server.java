@@ -47,7 +47,7 @@ public class Server {
     	fos.close();
     }
     
-    private void returnFile(SSLSocket connection) throws Exception {
+    private void sendFile(SSLSocket connection) throws Exception {
     	DataInputStream dis = new DataInputStream(connection.getInputStream());
     	DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
     	String filename = dis.readUTF();
@@ -65,9 +65,17 @@ public class Server {
     	dos.close();
     }
     
+    private void listProtection(SSLSocket connection) {
+    	return;
+    }
+    
+    private void vouch(SSLSocket connection) {
+    	return;
+    }
+    
     private void listen() throws Exception {
+    	
         System.out.println("Listening......");
-        
         while (true) {
             SSLSocket connection = (SSLSocket) serverConnection.accept();  
             DataInputStream dis = new DataInputStream(connection.getInputStream());
@@ -75,7 +83,13 @@ public class Server {
             if (cmd.equalsIgnoreCase("UPLOAD")) {
                 receiveFile(connection);
             } else if (cmd.equalsIgnoreCase("FETCH")) {
-                returnFile(connection);
+                sendFile(connection);
+            } else if (cmd.equalsIgnoreCase("LIST")) {
+            	listProtection(connection);
+            	break;
+            } else if (cmd.equalsIgnoreCase("VOUCH")) {
+            	vouch(connection);
+            	break;
             } else {
             	break;
             }

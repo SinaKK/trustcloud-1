@@ -11,15 +11,9 @@ public class Client {
 	private int hostport = -1;
 	
     public Client(String trustFile, String password) throws Exception {
-    	//System.out.println("Client created at " + InetAddress.getLocalHost().getCanonicalHostName());
+    	sslSocket = (SSLSocketFactory) SSLUtilities.getSSLSocketFactory(trustFile, password);
+    }
         
-        sslSocket = (SSLSocketFactory) SSLUtilities.getSSLSocketFactory(trustFile, password);
-    }
-    
-    private void init() throws Exception {
-    	
-    }
-    
     public void upload(String filename) throws Exception {
     	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
     	DataInputStream dis = new DataInputStream(connection.getInputStream());
@@ -59,7 +53,6 @@ public class Client {
     	dis.close();
     	dos.close();
     	connection.close();
-    	
     }
     
     private void uploadCert(String filename) {
@@ -175,8 +168,6 @@ public class Client {
         	printCommandHelp();
         	System.out.println("Error: problem with host address or port");
         	System.exit(1);
-        } else {
-        	c.init();
         }
         
         if (upload) c.upload(file_to_upload);
