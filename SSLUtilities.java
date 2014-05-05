@@ -51,7 +51,6 @@ public class SSLUtilities {
         for (long l = 0; l < fileLength; ++l) {
             output.write(dis.read());
         }
-        dis.close();
     }
 
     public static void writeFile(SSLSocket connection, File file) throws Exception {
@@ -64,6 +63,5 @@ public class SSLUtilities {
             dos.write(fis.read());
         }
         fis.close();
-        
     }
 }

@@ -1,5 +1,6 @@
 
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.InetAddress;
@@ -25,32 +26,58 @@ public class Server {
     }    
 
     private void receiveFile(SSLSocket connection) throws Exception {
-    	DataInputStream dis = new DataInputStream(connection.getInputStream());
-    	String filename = dis.readUTF();
-    	System.out.println(filename);
-    	FileOutputStream fos = new FileOutputStream("./server/"+filename);
-		SSLUtilities.readFile(connection, fos);
     	
-    	File f = new File("./server/"+filename);
+    	DataInputStream dis = new DataInputStream(connection.getInputStream());
+    	DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+    	
+    	String filename = dis.readUTF();	// read file name
+    	
+    	System.out.println("\tReady to receive file \"" + filename + "\".");
+    	FileOutputStream fos = new FileOutputStream("./server/"+filename);
+		SSLUtilities.readFile(connection, fos); 	// read the file
+    	
+    	File f = new File("./server/"+filename); 	// store the file in the list
     	files.add(f);
-    	System.out.println(files.get(0).getName());
+    	System.out.println("\tSuccessfully receive file \"" + filename + "\".");
+    	
+    	dos.writeBoolean(true); 	// tell client file upload success
+    	
+    	dos.close();
     	dis.close();
     	fos.close();
+    }
+    
+    private void returnFile(SSLSocket connection) throws Exception {
+    	DataInputStream dis = new DataInputStream(connection.getInputStream());
+    	DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+    	String filename = dis.readUTF();
+    	File requested = new File("./server/"+filename);
+    	if (files.contains(requested)) {
+    		System.out.println("\tReady to send file \"" + filename + "\".");
+    		dos.writeBoolean(true);		// tell client server has the file and ready to send
+    		SSLUtilities.writeFile(connection, requested);
+    		System.out.println("\tSuccessfully send file \"" + filename + "\".");
+    	} else {
+    		dos.writeBoolean(false); 	// tell client server does not have the file
+    		System.out.println("\tError: \"" + filename + "\" does not exist.");
+    	}
+    	dis.close();
+    	dos.close();
     }
     
     private void listen() throws Exception {
         System.out.println("Listening......");
         
         while (true) {
-            SSLSocket connection = (SSLSocket) serverConnection.accept();   
+            SSLSocket connection = (SSLSocket) serverConnection.accept();  
             DataInputStream dis = new DataInputStream(connection.getInputStream());
-            String cmd = dis.readUTF();
-            if (cmd.equalsIgnoreCase("ADD")) {
+           	String cmd = dis.readUTF();
+            if (cmd.equalsIgnoreCase("UPLOAD")) {
                 receiveFile(connection);
             } else if (cmd.equalsIgnoreCase("FECTH")) {
-
+                returnFile(connection);
             } else {
-                break;
+            	break;
             }
             dis.close();
             connection.close();
