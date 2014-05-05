@@ -44,9 +44,9 @@ public class Client {
     	dos.writeUTF("FETCH"); 		// write command
     	dos.writeUTF(filename); 	// write filename
     	if (dis.readBoolean()) {	// read if the server has the file
-    		System.out.println("Reading \"" + filename + "\".........");
+    		System.out.println("Reading \"" + filename + "\".........\n(Start of the file)");
     		SSLUtilities.readFile(connection, System.out);
-    		System.out.println();
+    		System.out.println("\n(End of the file)");
     	} else {
     		System.out.println("The server does not has the file.");
     	}
