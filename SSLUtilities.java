@@ -13,7 +13,7 @@ import javax.net.ssl.TrustManagerFactory;
 
 
 public class SSLUtilities {
-	public static SSLSocketFactory getSSLSocketFactory(String trustFile, String password) throws Exception {
+    public static SSLSocketFactory getSSLSocketFactory(String trustFile, String password) throws Exception {
 
         FileInputStream fis = new FileInputStream(trustFile);
         KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
