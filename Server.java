@@ -1,9 +1,13 @@
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.InetAddress;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.*;
 
 import javax.net.ssl.SSLServerSocket;
@@ -16,6 +20,7 @@ public class Server {
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
     private List<File> files;
+    private List<Certificate> certs;
     
     public Server(int port, String keyStore, String password) throws Exception {
         sslServerSocket = (SSLServerSocketFactory) SSLUtilities.getSSLServerSocketFactory(keyStore, password);
@@ -23,6 +28,7 @@ public class Server {
                 InetAddress.getLocalHost());
         System.out.println("Starting on : " + InetAddress.getLocalHost());
         files = new ArrayList<File>();
+        certs = new ArrayList<Certificate>();
     }    
 
     private void receiveFile(SSLSocket connection) throws Exception {
@@ -35,17 +41,44 @@ public class Server {
         System.out.println("\tReady to receive file \"" + filename + "\".");
         FileOutputStream fos = new FileOutputStream("./server/"+filename);
         SSLUtilities.readFile(connection, fos);     // read the file
-        
-        File f = new File("./server/"+filename);    // store the file in the list
-        files.add(f);
+        File f = new File("./server/"+filename);    // create file in the list
+       	files.add(f);
         System.out.println("\tSuccessfully receive file \"" + filename + "\".");
         
-        dos.writeBoolean(true);     // tell client file upload success
+        dos.writeBoolean(true);     // tell client upload success
         
         dos.close();
         dis.close();
         fos.close();
     }
+    
+    private void receiveCert(SSLSocket connection) throws Exception {
+    	DataInputStream dis = new DataInputStream(connection.getInputStream());
+        DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+        String filename = dis.readUTF();    // read file name
+        System.out.println("\tReady to receive certificate \"" + filename + "\".");
+        FileOutputStream fos = new FileOutputStream("./server/certs/"+filename);
+        SSLUtilities.readFile(connection, fos);     // read the file
+        
+        File f = new File ("./server/certs/"+filename);
+    	CertificateFactory cf = CertificateFactory.getInstance("X.509");
+    	BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
+    	Certificate cert = cf.generateCertificate(in);
+    	in.close();
+    	certs.add(cert);
+    	System.out.println("\tSuccessfully receive certificate \"" + filename + "\".");
+
+    	System.out.println("\n");
+    	System.out.println(cert.toString());
+    	System.out.println("\n");
+    	
+    	dos.writeBoolean(true);     // tell client upload success
+        
+        dos.close();
+        dis.close();
+        fos.close();
+    }
+        
     
     private void sendFile(SSLSocket connection) throws Exception {
         DataInputStream dis = new DataInputStream(connection.getInputStream());
@@ -87,6 +120,8 @@ public class Server {
             } else if (cmd.equalsIgnoreCase("LIST")) {
                 listProtection(connection);
                 break;
+            } else if (cmd.equalsIgnoreCase("UPLOAD_CERT")) {
+            	receiveCert(connection);
             } else if (cmd.equalsIgnoreCase("VOUCH")) {
                 vouch(connection);
                 break;

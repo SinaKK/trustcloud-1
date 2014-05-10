@@ -14,24 +14,38 @@ public class Client {
         sslSocket = (SSLSocketFactory) SSLUtilities.getSSLSocketFactory(trustFile, password);
     }
         
-    public void upload(String filename) throws Exception {
+    public void upload(String filename, int type) throws Exception {
         SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         File f = new File(filename);
-        dos.writeUTF("UPLOAD");     // write command
+        
+        if (type == 1) { 
+        	dos.writeUTF("UPLOAD");     
+        }
+        if (type == 2) {
+        	dos.writeUTF("UPLOAD_CERT");
+        }
+        
         dos.writeUTF(f.getName());  // write file name
         
         SSLUtilities.writeFile(connection, f);  // write the file
         if (dis.readBoolean()) {    // read boolean
-            System.out.println("\"" + filename + "\" upload success."); 
+           
+        	if (type == 1) {
+            	System.out.println("File \"" + filename + "\" upload success."); 
+            } else {
+            	System.out.println("Certificate \"" + filename + "\" upload success."); 
+            }
+        	
         } else {
-            System.out.println("\"" + filename + "\" upload fail.");
+            System.out.println("Upload failed.");
         }
         
         dis.close();
         connection.close();
     }
+
 
     private void setCircumference(int c) {
         return;
@@ -55,9 +69,6 @@ public class Client {
         connection.close();
     }
     
-    private void uploadCert(String filename) {
-        return;
-    }
     
     private void list() {
         return;
@@ -144,7 +155,8 @@ public class Client {
                     break;
                 case 'u':
                     if (args.length - i - 1 > 0) { // require 1 argument after the option
-                        c.uploadCert(args[i+1]);
+                        upload_cert = true;
+                        cert_to_upload = args[i+1];
                     }
                     else printCommandHelp();
                     break;
@@ -170,10 +182,10 @@ public class Client {
             System.exit(1);
         }
         
-        if (upload) c.upload(file_to_upload);
+        if (upload) c.upload(file_to_upload, 1);
         if (fetch) c.fetch(file_to_fetch);
         if (list) c.list();
-        if (upload_cert) c.uploadCert(cert_to_upload);
+        if (upload_cert) c.upload(cert_to_upload, 2);
         if (vouch) c.vouch(file_to_vouch, cert_to_vouch);
     }
     
