@@ -94,11 +94,22 @@ public class Client {
         connection.close();
     }
     
-    private void vouch(String filename, String Cert) throws Exception {
+    private void vouch(String filename, String certificate) throws Exception {
     	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         dos.writeUTF("VOUCH");      // write command
+
+        dos.writeUTF(filename);
+        dos.writeUTF(certificate);
+
+        // Receive hash of the file from the server if the file is found.
+        String hash = dis.readUTF();
+
+        // Encrypt the hash with the client's private key.
+
+        // Send the resulting digital signature back to the server.
+
         dos.close();
         dis.close();
         connection.close();
