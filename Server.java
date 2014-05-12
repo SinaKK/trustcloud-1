@@ -8,12 +8,7 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.SignatureException;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.util.*;
 
@@ -118,36 +113,64 @@ public class Server {
         saveCerts();
     }
     
-    private void vouch(SSLSocket connection) {
+    private void vouch(SSLSocket connection) throws Exception {
 
-    	/* test code */
-    	Certificate subject = certs.get(0);
-    	System.out.println(subject.toString());
-        Certificate signer = certs.get(1);
-    	System.out.println(signer.toString());
-        
-    	try {
-			signer.verify(subject.getPublicKey());
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (CertificateException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchProviderException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SignatureException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	System.out.println("ok");
+        DataInputStream dis = new DataInputStream(connection.getInputStream());
+        DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+
+        String filename = dis.readUTF();
+        String certificate = dis.readUTF();
+
+        // Check if file and certificate are on the server
+
+            // If both are found then 
+            try {
+                // Hash the file using SHA1.
+                String hash = ChecksumSHA1.getSHA1Checksum(filename);
+
+                // Send it to the client for it to encrypt the hash using the client's private key.
+                dos.writeUTF(hash);
+
+                // Receive the digital signature from the client and store this information along with the relation to the indicated certificate.
+            }     
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        /* test code */
+//       	Certificate subject = certs.get(0);
+//       	System.out.println(subject.toString());
+//        Certificate signer = certs.get(1);
+//       	System.out.println(signer.toString());
+//
+//    	Certificate c1 = certs.get(0);
+//    	System.out.println(c1.toString());
+//        Certificate c2 = certs.get(1);
+//    	System.out.println(c2.toString());
+//        
+//    	try {
+//			signer.verify(subject.getPublicKey());
+//		} catch (InvalidKeyException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (CertificateException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (NoSuchAlgorithmException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (NoSuchProviderException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (SignatureException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//        
+//    	System.out.println("ok");
+
     }
-        
-    
+     
     private void sendFile(SSLSocket connection) throws Exception {
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
