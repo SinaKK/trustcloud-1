@@ -1,9 +1,6 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.security.KeyStore;
-
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -13,14 +10,10 @@ public class Client {
     private String hostaddress;
     private int hostport = -1;
     
-    private KeyStore keystore;
-    private char[] password;
     
     public Client(String trustFile, String password) throws Exception {
         sslSocket = (SSLSocketFactory) SSLUtilities.getSSLSocketFactory(trustFile, password);
-        keystore = KeyStore.getInstance("JKS");
-        this.password = password.toCharArray();
-        keystore.load(new FileInputStream(trustFile), this.password);
+        hostaddress = null;
     }
         
     public void upload(String filename, int type) throws Exception {
@@ -56,17 +49,14 @@ public class Client {
         connection.close();
     }
 
-
-    private void setCircumference(int c) {
-        return;
-    }
     
-    private void fetch(String filename) throws Exception {
+    public void fetch(String filename, int circumference) throws Exception {
         SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         dos.writeUTF("FETCH");      // write command
         dos.writeUTF(filename);     // write filename
+        dos.writeInt(circumference);
         if (dis.readBoolean()) {    // read if the server has the file
             System.out.println("Reading \"" + filename + "\".........\n(Start of the file)");
             SSLUtilities.readFile(connection, System.out);
@@ -80,7 +70,7 @@ public class Client {
     }
     
     
-    private void list() throws Exception {
+    public void list() throws Exception {
     	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
@@ -91,7 +81,7 @@ public class Client {
         connection.close();
     }
     
-    private void vouch(String filename, String certificate) throws Exception {
+    public void vouch(String filename, String certificate) throws Exception {
     	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
@@ -147,6 +137,7 @@ public class Client {
         boolean list = false;
         boolean upload_cert = false;
         boolean vouch = false;
+        int circumference = -1;
         String file_to_upload = null;
         String file_to_fetch = null;
         String file_to_vouch = null;
@@ -161,27 +152,23 @@ public class Client {
                     if (args.length - i - 1 > 0) { // require 1 argument after the option
                         upload = true;
                         file_to_upload = args[i+1];
-                    }
-                    else printCommandHelp();
+                    } else printCommandHelp();
                     break;
                 case 'c':
                     if (args.length - i - 1 > 0) { // require 1 argument after the option
-                        c.setCircumference(Integer.parseInt(args[i+1]));
-                    }
-                    else printCommandHelp();
+                        circumference = Integer.parseInt(args[i+1]);
+                    } else printCommandHelp();
                     break;
                 case 'f':
                     if (args.length - i - 1 > 0) { // require 1 argument after the option
                         fetch = true;
                         file_to_fetch = args[i+1];
-                    }
-                    else printCommandHelp();
+                    } else printCommandHelp();
                     break;
                 case 'h':
                     if (args.length - i - 1 > 0) { // require 1 argument after the option
                         c.setHost(args[i+1]);
-                    }
-                    else printCommandHelp();
+                    } else printCommandHelp();
                     break;
                 case 'l':
                     list = true;                   // require no argument after the option
@@ -191,8 +178,7 @@ public class Client {
                     if (args.length - i - 1 > 0) { // require 1 argument after the option
                         upload_cert = true;
                         cert_to_upload = args[i+1];
-                    }
-                    else printCommandHelp();
+                    } else printCommandHelp();
                     break;
                 case 'v':
                     if (args.length - i - 1 > 1) { // require 2 argument after the option
@@ -200,8 +186,7 @@ public class Client {
                         file_to_vouch = args[i+1];
                         cert_to_vouch = args[i+2];
                         i++;
-                    }
-                    else printCommandHelp();
+                    } else printCommandHelp();
                     break;      
                 }   
             } else {
@@ -217,10 +202,10 @@ public class Client {
         }
         
         if (upload) c.upload(file_to_upload, 1);
-        if (fetch) c.fetch(file_to_fetch);
-        if (list) c.list();
-        if (upload_cert) c.upload(cert_to_upload, 2);
-        if (vouch) c.vouch(file_to_vouch, cert_to_vouch);
+        else if (fetch) c.fetch(file_to_fetch, circumference);
+        else if (list) c.list();
+        else if (upload_cert) c.upload(cert_to_upload, 2);
+        else if (vouch) c.vouch(file_to_vouch, cert_to_vouch);
     }
     
 }

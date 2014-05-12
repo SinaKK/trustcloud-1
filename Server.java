@@ -39,20 +39,14 @@ public class Server {
 	private void loadStates() throws Exception {
     	File f = new File(ROOTFOLDER+"certs.state");
     	if (f.isFile()) {
-    		System.out.println("\tStart loading...");
+    		System.out.println("Start loading certificates...");
     		FileInputStream fis = new FileInputStream(f);
     		ObjectInputStream ois = new ObjectInputStream(fis);
-    		
     		this.certs = (ArrayList<Certificate>) ois.readObject();
     		ois.close();
-    		System.out.println("\tLoading done.");
+    		System.out.println("Certificates Loading done.");
     	} else {
     		this.certs = new ArrayList<Certificate>();
-    	}
-    	
-    	System.out.println(this.certs.size());
-    	for (int i = 0; i < this.certs.size(); ++i) {
-    		System.out.println(this.certs.get(i).toString());
     	}
     }
     
@@ -66,7 +60,7 @@ public class Server {
     	System.out.println("\tSaving done.");
     }
     
-    private void receiveFile(SSLSocket connection) throws Exception {
+    public void receiveFile(SSLSocket connection) throws Exception {
         
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
@@ -87,7 +81,7 @@ public class Server {
         fos.close();
     }
     
-    private void receiveCert(SSLSocket connection) throws Exception {
+    public void receiveCert(SSLSocket connection) throws Exception {
     	DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         String filename = dis.readUTF();    // read file name
@@ -115,7 +109,7 @@ public class Server {
         saveCerts();
     }
     
-    private void vouch(SSLSocket connection) throws Exception {
+    public void vouch(SSLSocket connection) throws Exception {
 
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
@@ -173,10 +167,11 @@ public class Server {
 
     }
      
-    private void sendFile(SSLSocket connection) throws Exception {
+    public void sendFile(SSLSocket connection) throws Exception {
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         String filename = dis.readUTF();
+        int cicumference = dis.readInt();
         File requested = new File(ROOTFOLDER+filename);
         if (files.containsKey(requested)) {
             System.out.println("\tReady to send file \"" + filename + "\".");
@@ -191,7 +186,7 @@ public class Server {
         dos.close();
     }
     
-    private void listProtection(SSLSocket connection) {
+    public void listProtection(SSLSocket connection) {
         return;
     }
     
