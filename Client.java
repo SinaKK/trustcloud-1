@@ -2,6 +2,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.UnknownHostException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 
@@ -31,15 +33,7 @@ public class Client {
         File f = new File(filename);
         
         if (type == 1) { 
-        	dos.writeUTF("UPLOAD");     
-        	
-        	KeyStore.ProtectionParameter protParam =
-        	        new KeyStore.PasswordProtection(password);
-        	KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry)
-        	        keystore.getEntry("privateKeyAlias", protParam);
-        	PrivateKey myPrivateKey = pkEntry.getPrivateKey();
-        	System.out.println(myPrivateKey.toString());
-        	
+        	dos.writeUTF("UPLOAD");
         }
         if (type == 2) {
         	dos.writeUTF("UPLOAD_CERT");
@@ -60,6 +54,7 @@ public class Client {
             System.out.println("Upload failed.");
         }
         
+        dos.close();
         dis.close();
         connection.close();
     }
@@ -88,8 +83,15 @@ public class Client {
     }
     
     
-    private void list() {
-        return;
+    private void list() throws Exception {
+    	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
+        DataInputStream dis = new DataInputStream(connection.getInputStream());
+        DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+        dos.writeUTF("hahaha");      // write command
+        
+        dos.close();
+        dis.close();
+        connection.close();
     }
     
     private void vouch(String filename, String Cert) throws Exception {

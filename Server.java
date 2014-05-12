@@ -24,7 +24,7 @@ public class Server {
     
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
-    private Map<File, List<String>> files;
+    private Map<File, ArrayList<String>> files;
     private List<Certificate> certs;
     
     public Server(int port, String keyStore, String password) throws Exception {
@@ -32,10 +32,10 @@ public class Server {
         serverConnection = (SSLServerSocket) sslServerSocket.createServerSocket(port, 0,
                 InetAddress.getLocalHost());
         System.out.println("Starting on : " + InetAddress.getLocalHost());
-        files = new HashMap<File, List<String>>();
+        files = new HashMap<File, ArrayList<String>>();
         certs = new ArrayList<Certificate>();
-    }    
-
+    }
+    
     private void receiveFile(SSLSocket connection) throws Exception {
         
         DataInputStream dis = new DataInputStream(connection.getInputStream());
@@ -47,7 +47,7 @@ public class Server {
         FileOutputStream fos = new FileOutputStream("./server/"+filename);
         SSLUtilities.readFile(connection, fos);     // read the file
         File f = new File("./server/"+filename);    // create file in the list
-       	files.put(f, null);
+       	files.put(f, new ArrayList<String>());
         System.out.println("\tSuccessfully receive file \"" + filename + "\".");
         
         dos.writeBoolean(true);     // tell client upload success
@@ -86,6 +86,7 @@ public class Server {
     
     private void vouch(SSLSocket connection) {
 
+    	/* test code */
     	Certificate c1 = certs.get(0);
     	System.out.println(c1.toString());
         Certificate c2 = certs.get(1);
@@ -109,7 +110,7 @@ public class Server {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-       System.out.println("ok");
+    	System.out.println("ok");
     }
         
     
@@ -135,13 +136,12 @@ public class Server {
         return;
     }
     
-
     
     private void listen() throws Exception {
         
         System.out.println("Listening......");
         while (true) {
-            SSLSocket connection = (SSLSocket) serverConnection.accept();  
+        	SSLSocket connection = (SSLSocket) serverConnection.accept();  
             DataInputStream dis = new DataInputStream(connection.getInputStream());
             String cmd = dis.readUTF();
             if (cmd.equalsIgnoreCase("UPLOAD")) {
@@ -150,13 +150,13 @@ public class Server {
                 sendFile(connection);
             } else if (cmd.equalsIgnoreCase("LIST")) {
                 listProtection(connection);
-                break;
             } else if (cmd.equalsIgnoreCase("UPLOAD_CERT")) {
             	receiveCert(connection);
             } else if (cmd.equalsIgnoreCase("VOUCH")) {
                 vouch(connection);
-                break;
             } else {
+            	dis.close();
+            	connection.close();
                 break;
             }
             dis.close();
@@ -176,6 +176,5 @@ public class Server {
         
         Server s = new Server(port, keyStore, password);
         s.listen();
-
     }
 }
