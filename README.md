@@ -28,11 +28,11 @@ __-a:__
 
 __-f:__
 
-    *   download file with -c option
+    * download file with -c option
 
 __-u:__
 
-    *   does the server need to store the certificate file, or is it enough to just store the Certificate
+    * does the server need to store the certificate file, or is it enough to just store the Certificate
         object in its inner data structure
 
 __-v:__
