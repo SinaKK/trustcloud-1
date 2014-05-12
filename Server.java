@@ -24,7 +24,7 @@ public class Server {
     
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
-    private List<File> files;
+    private Map<File, List<String>> files;
     private List<Certificate> certs;
     
     public Server(int port, String keyStore, String password) throws Exception {
@@ -32,7 +32,7 @@ public class Server {
         serverConnection = (SSLServerSocket) sslServerSocket.createServerSocket(port, 0,
                 InetAddress.getLocalHost());
         System.out.println("Starting on : " + InetAddress.getLocalHost());
-        files = new ArrayList<File>();
+        files = new HashMap<File, List<String>>();
         certs = new ArrayList<Certificate>();
     }    
 
@@ -47,7 +47,7 @@ public class Server {
         FileOutputStream fos = new FileOutputStream("./server/"+filename);
         SSLUtilities.readFile(connection, fos);     // read the file
         File f = new File("./server/"+filename);    // create file in the list
-       	files.add(f);
+       	files.put(f, null);
         System.out.println("\tSuccessfully receive file \"" + filename + "\".");
         
         dos.writeBoolean(true);     // tell client upload success
