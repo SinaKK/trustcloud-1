@@ -118,7 +118,7 @@ public class Server {
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         String filename = dis.readUTF();
         File requested = new File("./server/"+filename);
-        if (files.contains(requested)) {
+        if (files.containsKey(requested)) {
             System.out.println("\tReady to send file \"" + filename + "\".");
             dos.writeBoolean(true);     // tell client server has the file and ready to send
             SSLUtilities.writeFile(connection, requested);
