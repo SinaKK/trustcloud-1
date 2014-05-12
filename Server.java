@@ -6,7 +6,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.InetAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SignatureException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.util.*;
 
@@ -67,16 +72,44 @@ public class Server {
     	in.close();
     	certs.add(cert);
     	System.out.println("\tSuccessfully receive certificate \"" + filename + "\".");
-
-    	System.out.println("\n");
-    	System.out.println(cert.toString());
-    	System.out.println("\n");
+    	
+//    	System.out.println("\n");
+//    	System.out.println(cert.toString());
+//    	System.out.println("\n");
     	
     	dos.writeBoolean(true);     // tell client upload success
         
         dos.close();
         dis.close();
         fos.close();
+    }
+    
+    private void vouch(SSLSocket connection) {
+
+    	Certificate c1 = certs.get(0);
+    	System.out.println(c1.toString());
+        Certificate c2 = certs.get(1);
+    	System.out.println(c2.toString());
+        
+    	try {
+			c2.verify(c1.getPublicKey());
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (CertificateException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SignatureException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+       System.out.println("ok");
     }
         
     
@@ -102,9 +135,7 @@ public class Server {
         return;
     }
     
-    private void vouch(SSLSocket connection) {
-        return;
-    }
+
     
     private void listen() throws Exception {
         

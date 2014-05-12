@@ -1,6 +1,10 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -10,8 +14,14 @@ public class Client {
     private String hostaddress;
     private int hostport = -1;
     
+    private KeyStore keystore;
+    private char[] password;
+    
     public Client(String trustFile, String password) throws Exception {
         sslSocket = (SSLSocketFactory) SSLUtilities.getSSLSocketFactory(trustFile, password);
+        keystore = KeyStore.getInstance("JKS");
+        this.password = password.toCharArray();
+        keystore.load(new FileInputStream(trustFile), this.password);
     }
         
     public void upload(String filename, int type) throws Exception {
@@ -22,6 +32,14 @@ public class Client {
         
         if (type == 1) { 
         	dos.writeUTF("UPLOAD");     
+        	
+        	KeyStore.ProtectionParameter protParam =
+        	        new KeyStore.PasswordProtection(password);
+        	KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry)
+        	        keystore.getEntry("privateKeyAlias", protParam);
+        	PrivateKey myPrivateKey = pkEntry.getPrivateKey();
+        	System.out.println(myPrivateKey.toString());
+        	
         }
         if (type == 2) {
         	dos.writeUTF("UPLOAD_CERT");
@@ -74,8 +92,14 @@ public class Client {
         return;
     }
     
-    private void vouch(String filename, String Cert) {
-        return;
+    private void vouch(String filename, String Cert) throws Exception {
+    	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
+        DataInputStream dis = new DataInputStream(connection.getInputStream());
+        DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+        dos.writeUTF("VOUCH");      // write command
+        dos.close();
+        dis.close();
+        connection.close();
     }
     
     private void setHost(String hostaddress) {
