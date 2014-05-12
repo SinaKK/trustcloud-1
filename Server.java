@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
@@ -60,7 +61,7 @@ public class Server {
     	System.out.println("\tSaving done.");
     }
     
-    public void receiveFile(SSLSocket connection) throws Exception {
+    private void receiveFile(SSLSocket connection) throws Exception {
         
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
@@ -81,7 +82,7 @@ public class Server {
         fos.close();
     }
     
-    public void receiveCert(SSLSocket connection) throws Exception {
+    private void receiveCert(SSLSocket connection) throws Exception {
     	DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         String filename = dis.readUTF();    // read file name
@@ -109,7 +110,7 @@ public class Server {
         saveCerts();
     }
     
-    public void vouch(SSLSocket connection) throws Exception {
+    private void vouch(SSLSocket connection) throws Exception {
 
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
@@ -167,36 +168,61 @@ public class Server {
 
     }
      
-    public void sendFile(SSLSocket connection) throws Exception {
+    
+    /**
+     * Send file to the client
+     * @param connection
+     * @throws Exception
+     */
+    private void sendFile(SSLSocket connection) throws Exception {
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+        
         String filename = dis.readUTF();
         int cicumference = dis.readInt();
+        
         File requested = new File(ROOTFOLDER+filename);
-        if (files.containsKey(requested)) {
+        if (files.containsKey(requested) && requested.isFile()) {
+        	
+        	// TODO check ring of trust
+        	
             System.out.println("\tReady to send file \"" + filename + "\".");
-            dos.writeBoolean(true);     // tell client server has the file and ready to send
+            dos.writeInt(1);     // tell client server has the file and ready to send
             SSLUtilities.writeFile(connection, requested);
             System.out.println("\tSuccessfully send file \"" + filename + "\".");
         } else {
-            dos.writeBoolean(false);    // tell client server does not have the file
+            dos.writeInt(0);    // tell client server does not have the file
             System.out.println("\tError: \"" + filename + "\" does not exist.");
         }
+        
         dis.close();
         dos.close();
     }
     
-    public void listProtection(SSLSocket connection) {
-        return;
+    
+    /**
+     * List out all the stored data files and how they are protected to the client
+     * @param connection
+     * @throws Exception
+     */
+    private void listProtection(SSLSocket connection) throws Exception {
+    	DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+        
+        
+        dos.close();
     }
     
     
+    /**
+     * Listen for clients' connection requests
+     * @throws Exception
+     */
     private void listen() throws Exception {
-        
         System.out.println("Listening......");
         while (true) {
         	SSLSocket connection = (SSLSocket) serverConnection.accept();  
             DataInputStream dis = new DataInputStream(connection.getInputStream());
+            
             String cmd = dis.readUTF();
             if (cmd.equalsIgnoreCase("UPLOAD")) {
                 receiveFile(connection);
@@ -213,10 +239,12 @@ public class Server {
             	connection.close();
                 break;
             }
+            
             dis.close();
             connection.close();
         }
     }
+    
     
     public static void main(String[] args) throws Exception {
         if (args.length != 3) {

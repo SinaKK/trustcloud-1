@@ -1,11 +1,17 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
+
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 
 public class Client {
+	
+	public static final int FILE = 1;
+	public static final int CERTIFICATE = 2;
+	
     private SSLSocketFactory sslSocket;
     private String hostaddress;
     private int hostport = -1;
@@ -15,31 +21,35 @@ public class Client {
         sslSocket = (SSLSocketFactory) SSLUtilities.getSSLSocketFactory(trustFile, password);
         hostaddress = null;
     }
-        
+       
+    
+    /**
+     * Upload a file to trustcloud
+     * @param filename the name of the file
+     * @param type indicates if the file is a data file or a certificate
+     * @throws Exception
+     */
     public void upload(String filename, int type) throws Exception {
         SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         File f = new File(filename);
         
-        if (type == 1) { 
+        if (type == FILE) { 
         	dos.writeUTF("UPLOAD");
         }
-        if (type == 2) {
+        if (type == CERTIFICATE) {
         	dos.writeUTF("UPLOAD_CERT");
         }
+        dos.writeUTF(f.getName());
+        SSLUtilities.writeFile(connection, f);
         
-        dos.writeUTF(f.getName());  // write file name
-        
-        SSLUtilities.writeFile(connection, f);  // write the file
         if (dis.readBoolean()) {    // read boolean
-           
-        	if (type == 1) {
+        	if (type == FILE) {
             	System.out.println("File \"" + filename + "\" upload success."); 
-            } else {
+            } else if (type == CERTIFICATE) {
             	System.out.println("Certificate \"" + filename + "\" upload success."); 
             }
-        	
         } else {
             System.out.println("Upload failed.");
         }
@@ -50,37 +60,70 @@ public class Client {
     }
 
     
+    /**
+     * Download a data file from trustcloud, and 
+     * the file must be in a ring of trust that has the specified circumference.
+     * @param filename the name of the file to be download.
+     * @param circumference	the minimum length the ring of trust that the file must be in.
+     * @throws Exception
+     */
     public void fetch(String filename, int circumference) throws Exception {
         SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
-        dos.writeUTF("FETCH");      // write command
-        dos.writeUTF(filename);     // write filename
+        
+        dos.writeUTF("FETCH"); 
+        dos.writeUTF(filename);     
         dos.writeInt(circumference);
-        if (dis.readBoolean()) {    // read if the server has the file
-            System.out.println("Reading \"" + filename + "\".........\n(Start of the file)");
+        
+        int status = dis.readInt();
+        switch (status) {
+        case 1:		// trustcloud has the file and it is of the required safety level
+        	System.out.println("Reading \"" + filename + "\".........\n(Start of the file)");
             SSLUtilities.readFile(connection, System.out);
             System.out.println("\n(End of the file)");
-        } else {
-            System.out.println("The server does not has the file.");
+            break;
+        case 0:
+        	System.out.println("The trustcloud does not has the file.");
+        	break;
+        case -1:
+        	System.out.println("The file on the trustcloud is not \"safe\" enough.");
+        	break;
         }
+        
         dis.close();
         dos.close();
         connection.close();
     }
     
     
-    public void list() throws Exception {
+    /**
+     * List all stored data files and how they are protected.
+     * @throws IOException
+     */
+    public void list() throws IOException {
     	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
-        dos.writeUTF("hahaha");      // write command
+        
+        dos.writeUTF("LIST");
+        
+        String protections = dis.readUTF();
+        
+        System.out.println(protections);
         
         dos.close();
         dis.close();
         connection.close();
     }
     
+    
+    /**
+     * 
+     * @param filename
+     * @param certificate
+     * @throws Exception
+     */
     public void vouch(String filename, String certificate) throws Exception {
     	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
@@ -102,6 +145,11 @@ public class Client {
         connection.close();
     }
     
+    
+    /**
+     * Set the host address and port
+     * @param hostaddress in the form of 000.000.000.000:0000
+     */
     private void setHost(String hostaddress) {
         int seperate = hostaddress.indexOf(":");
         this.hostaddress = hostaddress.substring(0, seperate);
@@ -109,6 +157,9 @@ public class Client {
     }
     
     
+    /**
+     * Print out command line options help
+     */
     private static void printCommandHelp() {
         System.out.println("\n===================Command line options: (* required)===================");
         System.out.println("-a filename               add or replace a file to the trustcloud");
@@ -121,22 +172,24 @@ public class Client {
         System.out.println("========================================================================\n");
     }
     
+    
     public static void main(String[] args) throws Exception {
+    	
+    	/* load truststore from client */
         if (args.length < 2) {
             System.err.println("Usage: java Client truststore_filepath truststore_password");
             System.exit(1);
         }
-        String truststore = args[0];
-        String password = args[1];
+        Client c = new Client(args[0], args[1]);
         
-        Client c = new Client(truststore, password);
-        
-        /* boolean indicator for activities */
+        /* boolean indicators for command line options */
         boolean upload = false;
         boolean fetch = false;
         boolean list = false;
         boolean upload_cert = false;
         boolean vouch = false;
+        
+        /* argument value of command line options */
         int circumference = -1;
         String file_to_upload = null;
         String file_to_fetch = null;
@@ -149,39 +202,39 @@ public class Client {
             if(args[i].startsWith("-")) {
                 switch (args[i].charAt(1)) {
                 case 'a': 
-                    if (args.length - i - 1 > 0) { // require 1 argument after the option
+                    if (args.length - i - 1 > 0) { // require 1 argument after -a
                         upload = true;
                         file_to_upload = args[i+1];
                     } else printCommandHelp();
                     break;
                 case 'c':
-                    if (args.length - i - 1 > 0) { // require 1 argument after the option
+                    if (args.length - i - 1 > 0) { // require 1 argument after -c
                         circumference = Integer.parseInt(args[i+1]);
                     } else printCommandHelp();
                     break;
                 case 'f':
-                    if (args.length - i - 1 > 0) { // require 1 argument after the option
+                    if (args.length - i - 1 > 0) { // require 1 argument after -f
                         fetch = true;
                         file_to_fetch = args[i+1];
                     } else printCommandHelp();
                     break;
                 case 'h':
-                    if (args.length - i - 1 > 0) { // require 1 argument after the option
+                    if (args.length - i - 1 > 0) { // require 1 argument after -h
                         c.setHost(args[i+1]);
                     } else printCommandHelp();
                     break;
                 case 'l':
-                    list = true;                   // require no argument after the option
+                    list = true;                   // require 0 argument after -l
                     i--;
                     break;
                 case 'u':
-                    if (args.length - i - 1 > 0) { // require 1 argument after the option
+                    if (args.length - i - 1 > 0) { // require 1 argument after -u
                         upload_cert = true;
                         cert_to_upload = args[i+1];
                     } else printCommandHelp();
                     break;
                 case 'v':
-                    if (args.length - i - 1 > 1) { // require 2 argument after the option
+                    if (args.length - i - 1 > 1) { // require 2 argument after -v
                         vouch = true;
                         file_to_vouch = args[i+1];
                         cert_to_vouch = args[i+2];
@@ -189,7 +242,7 @@ public class Client {
                     } else printCommandHelp();
                     break;      
                 }   
-            } else {
+            } else {	// unknown option
                 printCommandHelp();
                 break;
             }
@@ -201,10 +254,10 @@ public class Client {
             System.exit(1);
         }
         
-        if (upload) c.upload(file_to_upload, 1);
+        if (upload) c.upload(file_to_upload, FILE);
         else if (fetch) c.fetch(file_to_fetch, circumference);
         else if (list) c.list();
-        else if (upload_cert) c.upload(cert_to_upload, 2);
+        else if (upload_cert) c.upload(cert_to_upload, CERTIFICATE);
         else if (vouch) c.vouch(file_to_vouch, cert_to_vouch);
     }
     
