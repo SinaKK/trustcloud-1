@@ -19,6 +19,8 @@ import javax.net.ssl.SSLSocket;
 
 public class Server {
     
+	public static final String ROOTFOLDER = "./trustcloud/";
+	
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
     private Map<File, ArrayList<String>> files;
@@ -35,7 +37,7 @@ public class Server {
     
     @SuppressWarnings("unchecked")
 	private void loadStates() throws Exception {
-    	File f = new File("./server/certs.state");
+    	File f = new File(ROOTFOLDER+"certs.state");
     	if (f.isFile()) {
     		System.out.println("\tStart loading...");
     		FileInputStream fis = new FileInputStream(f);
@@ -55,7 +57,7 @@ public class Server {
     }
     
     private void saveCerts() throws Exception {
-    	File f = new File("./server/certs.state");
+    	File f = new File(ROOTFOLDER+"certs.state");
     	FileOutputStream fos = new FileOutputStream(f);
     	ObjectOutputStream oos = new ObjectOutputStream(fos);
     	System.out.println("\tStart saving...");
@@ -72,7 +74,7 @@ public class Server {
         String filename = dis.readUTF();    // read file name
         
         System.out.println("\tReady to receive file \"" + filename + "\".");
-        FileOutputStream fos = new FileOutputStream("./server/"+filename);
+        FileOutputStream fos = new FileOutputStream(ROOTFOLDER+filename);
         SSLUtilities.readFile(connection, fos);     // read the file
         File f = new File("./server/"+filename);    // create file in the list
        	files.put(f, new ArrayList<String>());
@@ -90,10 +92,10 @@ public class Server {
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         String filename = dis.readUTF();    // read file name
         System.out.println("\tReady to receive certificate \"" + filename + "\".");
-        FileOutputStream fos = new FileOutputStream("./server/certs/"+filename);
+        FileOutputStream fos = new FileOutputStream(ROOTFOLDER+"/certs/"+filename);
         SSLUtilities.readFile(connection, fos);     // read the file
         
-        File f = new File ("./server/certs/"+filename);
+        File f = new File (ROOTFOLDER+"/certs/"+filename);
     	CertificateFactory cf = CertificateFactory.getInstance("X.509");
     	BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
     	Certificate cert = cf.generateCertificate(in);
@@ -175,7 +177,7 @@ public class Server {
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         String filename = dis.readUTF();
-        File requested = new File("./server/"+filename);
+        File requested = new File(ROOTFOLDER+filename);
         if (files.containsKey(requested)) {
             System.out.println("\tReady to send file \"" + filename + "\".");
             dos.writeBoolean(true);     // tell client server has the file and ready to send
