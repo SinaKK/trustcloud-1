@@ -5,6 +5,8 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -33,7 +35,38 @@ public class Server {
                 InetAddress.getLocalHost());
         System.out.println("Starting on : " + InetAddress.getLocalHost());
         files = new HashMap<File, ArrayList<String>>();
-        certs = new ArrayList<Certificate>();
+        
+    }
+    
+    @SuppressWarnings("unchecked")
+	private void loadStates() throws Exception {
+    	File f = new File("./server/certs.state");
+    	if (f.isFile()) {
+    		System.out.println("\tStart loading...");
+    		FileInputStream fis = new FileInputStream(f);
+    		ObjectInputStream ois = new ObjectInputStream(fis);
+    		
+    		this.certs = (ArrayList<Certificate>) ois.readObject();
+    		ois.close();
+    		System.out.println("\tLoading done.");
+    	} else {
+    		this.certs = new ArrayList<Certificate>();
+    	}
+    	
+    	System.out.println(this.certs.size());
+    	for (int i = 0; i < this.certs.size(); ++i) {
+    		System.out.println(this.certs.get(i).toString());
+    	}
+    }
+    
+    private void saveCerts() throws Exception {
+    	File f = new File("./server/certs.state");
+    	FileOutputStream fos = new FileOutputStream(f);
+    	ObjectOutputStream oos = new ObjectOutputStream(fos);
+    	System.out.println("\tStart saving...");
+    	oos.writeObject(this.certs);
+    	oos.close();
+    	System.out.println("\tSaving done.");
     }
     
     private void receiveFile(SSLSocket connection) throws Exception {
@@ -82,18 +115,19 @@ public class Server {
         dos.close();
         dis.close();
         fos.close();
+        saveCerts();
     }
     
     private void vouch(SSLSocket connection) {
 
     	/* test code */
-    	Certificate c1 = certs.get(0);
-    	System.out.println(c1.toString());
-        Certificate c2 = certs.get(1);
-    	System.out.println(c2.toString());
+    	Certificate subject = certs.get(0);
+    	System.out.println(subject.toString());
+        Certificate signer = certs.get(1);
+    	System.out.println(signer.toString());
         
     	try {
-			c2.verify(c1.getPublicKey());
+			signer.verify(subject.getPublicKey());
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -175,6 +209,7 @@ public class Server {
         String password = args[2];
         
         Server s = new Server(port, keyStore, password);
+        s.loadStates();
         s.listen();
     }
 }
