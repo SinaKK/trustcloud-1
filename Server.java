@@ -200,16 +200,21 @@ public class Server {
     
     private boolean isSafe (File f, int circumference) {
     	
-    	if (circumference == -1) return true;
-//    	ArrayList<String> sigs = this.files.get(ROOTFOLDER + f.getName());
-//    	
-//    	for (String sig : sigs) { // iterate through each signature of the file
-//    		if (ringSize(signatureCerts.get(sig)) >= circumference) {
-//    			return true;
-//    		}
-//    	}
+    	if (circumference < 2) return true;
     	
-    	return true;
+    	ArrayList<String> sigs = this.files.get(ROOTFOLDER + f.getName());
+    	
+    	if (sigs == null) { // when no one has signed the data file
+    		return false;
+    	}
+    	
+    	for (String sig : sigs) { // iterate through each signature of the file, and check its corresponding ring
+    		if (ringSize(signatureCerts.get(sig)) >= circumference) {
+    			return true;
+    		}
+    	}
+    	
+    	return false; // none of its ring has the minimum size of the required length
     }
     
     
