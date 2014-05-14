@@ -5,6 +5,7 @@ __certs:__ store clients certificates and private keys
 __files:__ store the clients' data files 
 
 __trustcloud:__ root folder of the trustcloud server
+
     __/certs:__ store the certificates files that were uploaded by clients
 
 
