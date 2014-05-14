@@ -1,5 +1,8 @@
 openssl genrsa -out A.key 1024
 
+    // convert to java read format
+    
+    // openssl pkcs8 -topk8 -nocrypt -outform DER < $1.key > $1.pk8
 
 openssl req -new -key A.key -out A.r
 

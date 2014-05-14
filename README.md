@@ -31,6 +31,10 @@ __-f:__
 
     * download file with -c option
 
+__-l:__
+
+    * does the server simply send back a string representation of the protections to client?
+
 __-u:__
 
     * does the server need to store the certificate file, or is it enough to just store the Certificate
