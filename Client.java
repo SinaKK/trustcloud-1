@@ -1,14 +1,8 @@
-import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -31,8 +25,8 @@ public class Client {
        
     
     /**
-     * Upload a file to trustcloud
-     * @param filename the name of the file
+     * Request to upload a file to trustcloud
+     * @param filename the name of the file to be uploaded
      * @param type indicates if the file is a data file or a certificate
      * @throws Exception
      */
@@ -69,7 +63,7 @@ public class Client {
     
     
     /**
-     * Download a data file from trustcloud, and 
+     * Request to download a data file from trustcloud, and 
      * the file must be in a ring of trust that has the specified circumference.
      * @param filename the name of the file to be download.
      * @param circumference	the minimum length the ring of trust that the file must be in.
@@ -106,7 +100,7 @@ public class Client {
     
     
     /**
-     * List all stored data files and how they are protected.
+     * Request to list all stored data files and how they are protected.
      * @throws IOException
      */
     public void list() throws IOException {
@@ -126,17 +120,29 @@ public class Client {
     }
     
     
+    public void test() throws IOException {
+    	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
+        DataInputStream dis = new DataInputStream(connection.getInputStream());
+        DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+        
+        dos.writeUTF("TEST");
+        dos.close();
+        dis.close();
+        connection.close();
+    }
+    
+    
     /**
-     * 
-     * @param filename
-     * @param certificate
+     * Request to vouch for the file using certificated
+     * @param filename the name of the file to be vouch
+     * @param certificate the certificate used for vouching
      * @throws Exception
      */
     public void vouch(String filename, String certificate) throws Exception {
         SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
-        dos.writeUTF("VOUCH");      // write command
+        dos.writeUTF("VOUCH");
 
         dos.writeUTF(filename);
         dos.writeUTF(certificate);
@@ -200,6 +206,7 @@ public class Client {
         boolean list = false;
         boolean upload_cert = false;
         boolean vouch = false;
+        boolean test = false;
         
         /* argument value of command line options */
         int circumference = -1;
@@ -245,6 +252,10 @@ public class Client {
                         cert_to_upload = args[i+1];
                     } else printCommandHelp();
                     break;
+                case 't':
+                	test = true;
+                    i--;
+                    break;
                 case 'v':
                     if (args.length - i - 1 > 1) { // require 2 argument after -v
                         vouch = true;
@@ -271,6 +282,7 @@ public class Client {
         else if (list) c.list();
         else if (upload_cert) c.upload(cert_to_upload, CERTIFICATE);
         else if (vouch) c.vouch(file_to_vouch, cert_to_vouch);
+        else if (test) c.test();
     }
     
 }

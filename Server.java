@@ -7,14 +7,14 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.SignatureException;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -24,41 +24,66 @@ import javax.net.ssl.SSLSocket;
 public class Server {
     
 	public static final String ROOTFOLDER = "./trustcloud/";
+	public static final String CERTFOLDER = ROOTFOLDER + "/certs/";
 	
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
-    private Map<String, ArrayList<String>> files; // Map files to signatures
-    private Map<String, X509Certificate> signatureCerts; // Map signatures to certificates
-    private List<X509Certificate> certs;
+    private HashMap<String, ArrayList<String>> files; // Map files to signatures
+    private HashMap<String, String> signatureCerts; // Map signatures to its owner
+    private HashMap<String, ArrayList<X509Certificate>> issuerCerts;
+    private HashMap<String, ArrayList<X509Certificate>> subjectCerts;
+    private HashMap<String, TreeSet<String>> subject_issuer;
     
+    /**
+     * TrustCloud initialize with a keystore file and its password and a port number.
+     * @param port port number where the server starts
+     * @param keyStore keystore file where the private key of server is stored
+     * @param password password of the keystore file
+     * @throws Exception
+     */
     public Server(int port, String keyStore, String password) throws Exception {
         sslServerSocket = (SSLServerSocketFactory) SSLUtilities.getSSLServerSocketFactory(keyStore, password);
         serverConnection = (SSLServerSocket) sslServerSocket.createServerSocket(port, 0,
                 InetAddress.getLocalHost());
-        System.out.println("Starting on : " + InetAddress.getLocalHost());
+        System.out.println("Starting on: " + InetAddress.getLocalHost().getHostAddress());
     }
     
+    
+    /**
+     * Loading the TrustCloud server states, including its files and their signatures and certificates
+     * @throws Exception
+     */
     @SuppressWarnings("unchecked")
 	private void loadStates() throws Exception {
+    	
+    	/* create certificate folder */
+    	File certDir = new File(CERTFOLDER);
+		if (!certDir.isDirectory()) {
+			certDir.mkdir();
+		}  
     	
     	/* loading server stored certificates information */
     	File f = new File(ROOTFOLDER+"certs.state");
     	if (f.isFile()) {
-    		System.out.println("Start loading certificates...");
+    		System.out.println("Loading certificates...");
     		FileInputStream fis = new FileInputStream(f);
     		ObjectInputStream ois = new ObjectInputStream(fis);
-    		this.certs = (ArrayList<X509Certificate>) ois.readObject();
+    		this.subjectCerts  = (HashMap<String, ArrayList<X509Certificate>>) ois.readObject();
+    		this.issuerCerts = (HashMap<String, ArrayList<X509Certificate>>) ois.readObject();
+    		this.subject_issuer = (HashMap<String, TreeSet<String>>) ois.readObject();
     		ois.close();
     		fis.close();
     		System.out.println("Certificates Loading done.");
     	} else {
-    		this.certs = new ArrayList<X509Certificate>();
+    		issuerCerts = new HashMap<String, ArrayList<X509Certificate>>();
+        	subjectCerts = new HashMap<String, ArrayList<X509Certificate>>();
+        	subject_issuer = new HashMap<String, TreeSet<String>>();
     	}
     	
     	/* loading server stored files and its signature information */
     	f = new File(ROOTFOLDER+"files.state");
     	if (f.isFile()) {
-    		System.out.println("Start loading files...");
+    		System.out.println("Loading files...");
     		FileInputStream fis = new FileInputStream(f);
     		ObjectInputStream ois = new ObjectInputStream(fis);
     		this.files = (HashMap<String, ArrayList<String>>) ois.readObject();
@@ -69,35 +94,82 @@ public class Server {
     		this.files = new HashMap<String, ArrayList<String>>();
     	}
     	
-    	signatureCerts = new HashMap<String, X509Certificate>();
+    	/* loading server stored signatures information */
+    	f = new File(ROOTFOLDER + "sigs.state");
+    	if (f.isFile()) {
+    		System.out.println("Loading signatures...");
+    		FileInputStream fis = new FileInputStream(f);
+    		ObjectInputStream ois = new ObjectInputStream(fis);
+    		this.signatureCerts = (HashMap<String, String>)ois.readObject();
+    		ois.close();
+    		fis.close();
+    		System.out.println("Signatures loading done.");
+    	} else {
+    		signatureCerts = new HashMap<String, String>();
+    	}
     }
     
     
+    /**
+     * Save the states of certificates information
+     * @throws Exception
+     */
     private void saveCerts() throws Exception {
-    	File f = new File(ROOTFOLDER+"certs.state");
+    	File f = new File(ROOTFOLDER + "certs.state");
     	FileOutputStream fos = new FileOutputStream(f);
     	ObjectOutputStream oos = new ObjectOutputStream(fos);
-    	System.out.println("\tStart saving...");
-    	oos.writeObject(this.certs);
+    	System.out.println("\tSaving certificates...");
+    	oos.writeObject(this.subjectCerts);
+    	oos.writeObject(this.issuerCerts);
+    	oos.writeObject(this.subject_issuer);
     	oos.close();
-    	System.out.println("\tSaving done.");
+    	fos.close();
+    	System.out.println("\tCertificates saving done.");
     }
     
     
+    /**
+     * Save the states of signature
+     * @throws Exception
+     */
+    private void saveSignature() throws Exception {
+    	File f = new File(ROOTFOLDER + "sigs.state");
+    	FileOutputStream fos = new FileOutputStream(f);
+    	ObjectOutputStream oos = new ObjectOutputStream(fos);
+    	System.out.println("\tSaving signaturess...");
+    	oos.writeObject(this.signatureCerts);
+    	oos.close();
+    	fos.close();
+    	System.out.println("\tSignatures saving done.");
+    }
+    
+    
+    /**
+     * Link to Client.upload
+     * Receive a data file from client
+     * @param connection the SSL connection
+     * @throws Exception
+     */
     private void receiveFile(SSLSocket connection) throws Exception {
-        
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         
-        String filename = dis.readUTF();    // read file name
+        /* read in the name of the file */
+        String filename = dis.readUTF();
         
+        // TODO when file is already on the server
+        
+        /* read in the data file store it on the server */
         System.out.println("\tReady to receive file \"" + filename + "\".");
-        FileOutputStream fos = new FileOutputStream(ROOTFOLDER+filename);
-        SSLUtilities.readFile(connection, fos);     // read the file
-       	files.put(filename, new ArrayList<String>());
+        FileOutputStream fos = new FileOutputStream(ROOTFOLDER + filename);
+        SSLUtilities.readFile(connection, fos);
+       	
+        /* record the file */
+        files.put(filename, new ArrayList<String>());
         System.out.println("\tSuccessfully receive file \"" + filename + "\".");
         
-        dos.writeBoolean(true);     // tell client upload success
+        /* send feed back to client */
+        dos.writeBoolean(true);
         
         dos.close();
         dis.close();
@@ -105,31 +177,69 @@ public class Server {
     }
     
     
+    /**
+     * Link to Clien.upload
+     * Receive a certificate file from client 
+     * @param connection the SSL connection
+     * @throws Exception
+     */
     private void receiveCert(SSLSocket connection) throws Exception {
     	DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
-        String filename = dis.readUTF();    // read file name
-        System.out.println("\tReady to receive certificate \"" + filename + "\".");
-        FileOutputStream fos = new FileOutputStream(ROOTFOLDER+"/certs/"+filename);
-        SSLUtilities.readFile(connection, fos);     // read the file
         
-        File f = new File (ROOTFOLDER+"/certs/"+filename);
+        /* read in the filename of the certificate */
+        String filename = dis.readUTF();
+        System.out.println("\tReady to receive certificate \"" + filename + "\".");
+        
+        /* read in the certificate file and store it on the server */
+        FileOutputStream fos = new FileOutputStream(CERTFOLDER + filename);
+        SSLUtilities.readFile(connection, fos);
+        System.out.println("\tSuccessfully receive certificate \"" + filename + "\".");
+        
+        /* read in the certificate information from the file */
+        File f = new File (CERTFOLDER + filename);
     	CertificateFactory cf = CertificateFactory.getInstance("X.509");
     	BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
     	X509Certificate cert = (X509Certificate)cf.generateCertificate(in);
     	in.close();
-    	certs.add(cert);
-    	System.out.println("\tSuccessfully receive certificate \"" + filename + "\".");
     	
-    	dos.writeBoolean(true);     // tell client upload success
+    	/* record the certificate */
+    	addNewCert(cert);
+    	
+    	/* send feedback to client */
+    	dos.writeBoolean(true);
+        
+        /* save the certificate states */
+        saveCerts();
         
         dos.close();
         dis.close();
         fos.close();
-        	
-        saveCerts();
     }
 
+    
+    /**
+     * Add the new certificate the both subject and issuer map
+     * @param cert certificate to be added
+     */
+    private void addNewCert(X509Certificate cert) {
+    	
+    	String subject = cert.getSubjectX500Principal().getName();
+    	String issuer = cert.getIssuerX500Principal().getName();
+    	
+    	/* add the certificate to the person who owns the certificate */
+    	if (!subjectCerts.containsKey(subject)) subjectCerts.put(subject, new ArrayList<X509Certificate>());	
+    	subjectCerts.get(subject).add(cert);
+    	
+    	/* add the certificate to the person who signs the certificate */
+    	if (!issuerCerts.containsKey(issuer)) issuerCerts.put(issuer, new ArrayList<X509Certificate>());
+    	issuerCerts.get(issuer).add(cert);
+    	
+    	/* add the subject-issuer relation */
+    	if (!subject_issuer.containsKey(subject)) subject_issuer.put(subject, new TreeSet<String>());
+    	subject_issuer.get(subject).add(issuer);
+    }
+    
     
     private void vouch(SSLSocket connection) throws Exception {
 
@@ -139,14 +249,13 @@ public class Server {
         String filename = dis.readUTF();
         String certificate = dis.readUTF();
 
-        // Check if file and certificate are on the server
-        File fFile = new File(ROOTFOLDER+filename);
-        File fCertificate = new File(ROOTFOLDER+certificate);
-        
-        if (fFile.isFile() && fCertificate.isFile()) {
-            // If both are found then 
-            try {
-                // Hash the file using SHA1.
+        File file = new File(ROOTFOLDER+filename);
+        if (file.isFile()) {
+        	if (subjectCerts.containsKey(certificate)) {
+        		
+        		System.out.println("\tReady to vouch for file \"" + filename + 
+        				"\" using certificate \"" + certificate + "\".");
+        		// Hash the file using SHA1.
                 String hash = ChecksumSHA1.getSHA1Checksum(filename);
 
                 // Send it to the client for it to encrypt the hash using the client's private key.
@@ -159,66 +268,89 @@ public class Server {
                 files.get(filename).add(digSig);
 
                 // Store signature relation to certificate
-                File f = new File (ROOTFOLDER+certificate);
+                File f = new File (CERTFOLDER + certificate);
                 CertificateFactory cf = CertificateFactory.getInstance("X.509");
                 BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
                 X509Certificate cert = (X509Certificate)cf.generateCertificate(in);
                 in.close();
-
-                signatureCerts.put(digSig, cert);
-            }     
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        else {
-            System.out.println("No file or certificate found.");
-        }
+                signatureCerts.put(digSig, cert.getSubjectX500Principal().getName());
+                saveSignature();
+                
+        	} else System.out.println("\tVouching failed: cannot find specified certificate.");
+        } else System.out.println("\tVouching failed, cannot find specified file");
+     
+        dis.close();
+        dos.close();
     }
     
     
-    /**
-     * Return if c2 is the issuer of c1
-     * @param c1 the subject
-     * @param c2 the issuer
-     * @return
-     */
-    private boolean isIssuer (X509Certificate c1, X509Certificate c2) {
-    	boolean isIssuer = true;
-    	try {
-			c2.verify(c1.getPublicKey());
-		} catch (InvalidKeyException e) {
-			isIssuer = false;
-			e.printStackTrace();
-		} catch (CertificateException e) {
-			isIssuer = false;
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			isIssuer = false;
-			e.printStackTrace();
-		} catch (NoSuchProviderException e) {
-			isIssuer = false;
-			e.printStackTrace();
-		} catch (SignatureException e) {
-			isIssuer = false;
-			e.printStackTrace();
-		}
-    	return isIssuer;
-    }
-    
-    
-    /**
-     * Check the ring of trust where certificate c is in
-     * @param c Certificate
-     * @return the size of the ring where certificate c is in
-     * 			0 as c is not in any ring	
-     */
-    private int ringSize(X509Certificate c) {
+    private int ringSize(String subject) {
     	// TODO
-    	return 0;
+    	int size = 0;
+    	Queue<String> q = new LinkedList<String>();
+    	Set<String> gone = new TreeSet<String>();
+    	
+    	System.out.println("Checking " + subject);
+    	
+    	for (String issuer : subject_issuer.get(subject)) {
+    		System.out.println("adding " + issuer);
+    		q.add(issuer);
+    	}
+    	gone.add(subject);
+    	
+    	while (true) {
+    		String top = q.poll();
+    		gone.add(top);
+    		/* DEAD END. top's certificate is not in the server*/
+    		if (!subject_issuer.containsKey(top)) {
+    			continue;
+    		}
+    		
+    		if (top.equals(subject)) {
+    			size++;
+    			continue;
+    		}
+    		
+    		/* find out who has issued certificate for top */
+    		for (String issuer: subject_issuer.get(top)) {
+    			if (!q.contains(issuer) && !gone.contains(issuer)) {
+    				System.out.println("adding " + issuer);
+    				q.add(issuer);
+    			}
+    			
+    		}
+    		size++;
+    		if (q.isEmpty()) {
+    			break;
+    		}
+    	}
+    	
+    	return size;
     }
     
     
+    private void test(SSLSocket connection) throws Exception {
+    	DataInputStream dis = new DataInputStream(connection.getInputStream());
+    	File f = new File (CERTFOLDER + "Picu.crt");
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
+        X509Certificate cert = (X509Certificate)cf.generateCertificate(in);
+        in.close();
+    	
+        int r = ringSize((cert.getSubjectX500Principal().getName()));
+    	
+    	System.out.println(r);
+    	
+    	dis.close();
+    }
+    
+    
+    /**
+     * Check is a data file has required safety
+     * @param f the data file to be checked
+     * @param circumference the length of the ring of the trust
+     * @return true is the the file is in at least one ring that has the required length
+     */
     private boolean isSafe (File f, int circumference) {
     	
     	if (circumference < 2) return true;
@@ -240,7 +372,7 @@ public class Server {
     
     
     /**
-     * Send file to the client
+     * Send a data file to the client
      * @param connection
      * @throws Exception
      */
@@ -248,10 +380,12 @@ public class Server {
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         
+        /* read in the filename of the data file and the required length of ring of trust */
         String filename = dis.readUTF();
         int circumference = dis.readInt();
         
-        File requested = new File(ROOTFOLDER+filename);
+        // TODO better logic, need to check against its signature
+        File requested = new File(ROOTFOLDER + filename);
         if (files.containsKey(filename) && requested.isFile()) {
         	System.out.println("\tReady to send file \"" + filename + "\".");
         	if (isSafe(requested, circumference)) {
@@ -280,6 +414,7 @@ public class Server {
     private void listProtection(SSLSocket connection) throws Exception {
     	DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         
+    	// TODO
         
         dos.close();
     }
@@ -306,6 +441,8 @@ public class Server {
             	receiveCert(connection);
             } else if (cmd.equalsIgnoreCase("VOUCH")) {
                 vouch(connection);
+            } else if (cmd.equalsIgnoreCase("TEST")) {
+                test(connection);
             } else {
             	dis.close();
             	connection.close();
