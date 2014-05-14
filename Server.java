@@ -27,8 +27,8 @@ public class Server {
 	
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
-    private Map<String, ArrayList<String>> files;
-    private Map<String, Certificate> signatureCerts;
+    private Map<String, ArrayList<String>> files; // Map files to signatures
+    private Map<String, Certificate> signatureCerts; // Map signatures to certificates
     private List<Certificate> certs;
     
     public Server(int port, String keyStore, String password) throws Exception {
@@ -138,7 +138,10 @@ public class Server {
         String certificate = dis.readUTF();
 
         // Check if file and certificate are on the server
-
+        File fFile = new File(ROOTFOLDER+filename);
+        File fCertificate = new File(ROOTFOLDER+certificate);
+        
+        if (fFile.isFile() && fCertificate.isFile()) {
             // If both are found then 
             try {
                 // Hash the file using SHA1.
@@ -147,12 +150,28 @@ public class Server {
                 // Send it to the client for it to encrypt the hash using the client's private key.
                 dos.writeUTF(hash);
 
-                // Receive the digital signature from the client and store this information along with the relation to the indicated certificate.
+                // Receive the digital signature from the client
+                String digSig = dis.readUTF();
+
+                // Store relation between file and signatures
+                files.get(filename).add(digSig);
+
+                // Store signature relation to certificate
+                File f = new File (ROOTFOLDER+certificate);
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
+                Certificate cert = cf.generateCertificate(in);
+                in.close();
+
+                signatureCerts.put(digSig, cert);
             }     
             catch (Exception e) {
                 e.printStackTrace();
             }
-
+        }
+        else {
+            System.out.println("No file or certificate found.");
+        }
     }
     
     
