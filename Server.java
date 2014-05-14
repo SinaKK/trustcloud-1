@@ -11,9 +11,9 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SignatureException;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.*;
 
 import javax.net.ssl.SSLServerSocket;
@@ -28,8 +28,8 @@ public class Server {
     private SSLServerSocketFactory sslServerSocket;
     private SSLServerSocket serverConnection;
     private Map<String, ArrayList<String>> files; // Map files to signatures
-    private Map<String, Certificate> signatureCerts; // Map signatures to certificates
-    private List<Certificate> certs;
+    private Map<String, X509Certificate> signatureCerts; // Map signatures to certificates
+    private List<X509Certificate> certs;
     
     public Server(int port, String keyStore, String password) throws Exception {
         sslServerSocket = (SSLServerSocketFactory) SSLUtilities.getSSLServerSocketFactory(keyStore, password);
@@ -47,12 +47,12 @@ public class Server {
     		System.out.println("Start loading certificates...");
     		FileInputStream fis = new FileInputStream(f);
     		ObjectInputStream ois = new ObjectInputStream(fis);
-    		this.certs = (ArrayList<Certificate>) ois.readObject();
+    		this.certs = (ArrayList<X509Certificate>) ois.readObject();
     		ois.close();
     		fis.close();
     		System.out.println("Certificates Loading done.");
     	} else {
-    		this.certs = new ArrayList<Certificate>();
+    		this.certs = new ArrayList<X509Certificate>();
     	}
     	
     	/* loading server stored files and its signature information */
@@ -69,7 +69,7 @@ public class Server {
     		this.files = new HashMap<String, ArrayList<String>>();
     	}
     	
-    	signatureCerts = new HashMap<String, Certificate>();
+    	signatureCerts = new HashMap<String, X509Certificate>();
     }
     
     
@@ -116,7 +116,7 @@ public class Server {
         File f = new File (ROOTFOLDER+"/certs/"+filename);
     	CertificateFactory cf = CertificateFactory.getInstance("X.509");
     	BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
-    	Certificate cert = cf.generateCertificate(in);
+    	X509Certificate cert = (X509Certificate)cf.generateCertificate(in);
     	in.close();
     	certs.add(cert);
     	System.out.println("\tSuccessfully receive certificate \"" + filename + "\".");
@@ -126,8 +126,10 @@ public class Server {
         dos.close();
         dis.close();
         fos.close();
+        	
         saveCerts();
     }
+
     
     private void vouch(SSLSocket connection) throws Exception {
 
@@ -160,7 +162,7 @@ public class Server {
                 File f = new File (ROOTFOLDER+certificate);
                 CertificateFactory cf = CertificateFactory.getInstance("X.509");
                 BufferedInputStream in = new BufferedInputStream(new FileInputStream(f));
-                Certificate cert = cf.generateCertificate(in);
+                X509Certificate cert = (X509Certificate)cf.generateCertificate(in);
                 in.close();
 
                 signatureCerts.put(digSig, cert);
@@ -181,7 +183,7 @@ public class Server {
      * @param c2 the issuer
      * @return
      */
-    private boolean isIssuer (Certificate c1, Certificate c2) {
+    private boolean isIssuer (X509Certificate c1, X509Certificate c2) {
     	boolean isIssuer = true;
     	try {
 			c2.verify(c1.getPublicKey());
@@ -206,12 +208,12 @@ public class Server {
     
     
     /**
-     * Check the ring of trust where Certificate c is in
+     * Check the ring of trust where certificate c is in
      * @param c Certificate
-     * @return the size of the ring where Certificate c is in
+     * @return the size of the ring where certificate c is in
      * 			0 as c is not in any ring	
      */
-    private int ringSize(Certificate c) {
+    private int ringSize(X509Certificate c) {
     	// TODO
     	return 0;
     }

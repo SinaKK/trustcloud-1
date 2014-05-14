@@ -1,9 +1,14 @@
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-
+import java.io.ObjectOutputStream;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -35,6 +40,7 @@ public class Client {
         SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
+
         File f = new File(filename);
         
         if (type == FILE) { 
@@ -60,7 +66,7 @@ public class Client {
         dis.close();
         connection.close();
     }
-
+    
     
     /**
      * Download a data file from trustcloud, and 
