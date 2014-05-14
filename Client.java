@@ -3,6 +3,8 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 
+import java.security.PrivateKey;
+
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -125,7 +127,7 @@ public class Client {
      * @throws Exception
      */
     public void vouch(String filename, String certificate) throws Exception {
-    	SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
+        SSLSocket connection = (SSLSocket) sslSocket.createSocket(hostaddress, hostport);
         DataInputStream dis = new DataInputStream(connection.getInputStream());
         DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
         dos.writeUTF("VOUCH");      // write command
@@ -137,8 +139,12 @@ public class Client {
         String hash = dis.readUTF();
 
         // Encrypt the hash with the client's private key.
+        PrivateKey pivKey = KeyReader.readPrivateKey("certs/Aole.pk8");
+        byte[] digSig = KeyReader.signData(hash, pivKey); 
+        String decodedDigSig = new String(digSig, "UTF-8");
 
         // Send the resulting digital signature back to the server.
+        dos.writeUTF(decodedDigSig);
 
         dos.close();
         dis.close();
